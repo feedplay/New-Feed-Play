@@ -1,45 +1,38 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import { fileURLToPath } from "url";
 import path from "path";
 
-// Dynamic import inside function to avoid top-level await issues
-async function setupPlugins(mode: string) {
-  const plugins = [react()];
+// Resolve __dirname in ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-  if (mode === "development") {
-    try {
-      const { componentTagger } = await import("lovable-tagger");
-      plugins.push(componentTagger());
-    } catch (error) {
-      console.warn("⚠️ Could not load lovable-tagger:", error);
-    }
-  }
-
-  return plugins;
-}
-
-// Export ESM config
-export default defineConfig(async ({ mode }) => ({
+// Export the Vite configuration
+export default defineConfig({
   server: {
-    host: "::",
-    port: 8080,
+    host: "::", // Enables IPv6 support
+    port: 8080, // Custom port for dev server
   },
-  plugins: await setupPlugins(mode),
+  plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(__dirname, "./src"), // Allows for cleaner imports
     },
   },
   build: {
-    target: "esnext",
+    target: "esnext", // Ensures compatibility with modern browsers
     commonjsOptions: {
-      transformMixedEsModules: true,
+      transformMixedEsModules: true, // Fixes compatibility with some CJS modules
     },
-    outDir: "dist",
+    outDir: "dist", // Defines the output directory
+    rollupOptions: {
+      external: ["react", "react-dom"], // Prevents bundling core React libraries
+    },
+    chunkSizeWarningLimit: 500, // Adjust chunk size limit for this warning
   },
   optimizeDeps: {
     esbuildOptions: {
-      format: "esm",
+      format: "esm", // Ensures ES module compatibility
     },
   },
-}));
+});
