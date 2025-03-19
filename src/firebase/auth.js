@@ -87,8 +87,25 @@ export const signInWithGoogle = async () => {
     
     return { user: userData };
   } catch (error) {
-    console.error("Error signing in with Google:", error);
-    throw new Error("Google sign-in failed - please try again");
+    if (error.code === 'auth/account-exists-with-different-credential') {
+      const email = error.customData.email;
+      const pendingCred = GoogleAuthProvider.credentialFromError(error);
+      const signInMethods = await fetchSignInMethodsForEmail(auth, email);
+
+      if (signInMethods.includes(EmailAuthProvider.EMAIL_PASSWORD_SIGN_IN_METHOD)) {
+        const password = prompt('Please enter your password to link accounts.');
+        const credential = EmailAuthProvider.credential(email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        await linkWithCredential(userCredential.user, pendingCred);
+      } else if (signInMethods.includes(GoogleAuthProvider.GOOGLE_SIGN_IN_METHOD)) {
+        const googleProvider = new GoogleAuthProvider();
+        const googleResult = await signInWithPopup(auth, googleProvider);
+        await linkWithCredential(googleResult.user, pendingCred);
+      }
+    } else {
+      console.error("Error signing in with Google:", error);
+      throw new Error("Google sign-in failed - please try again");
+    }
   }
 };
 
